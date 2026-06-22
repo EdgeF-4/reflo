@@ -1,0 +1,25 @@
+{
+  "name": "@reflo/domain",
+  "version": "0.1.0",
+  "description": "Pure, framework-free domain logic: settlement ledger, multi-touch attribution, commission rules, and fraud scoring. No I/O, fully unit-tested.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
