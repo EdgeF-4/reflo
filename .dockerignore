@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+*.log
+.pgdata
+config.json
+.env
+.env.*

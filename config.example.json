@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to config.json (which is gitignored) and chmod 600 it. The AI layer reads it directly; the key is never an environment variable and never committed. Without this file the platform still runs fully and the AI features return deterministic, rule-based output.",
+  "ai": {
+    "baseUrl": "https://integrate.api.nvidia.com/v1",
+    "apiKey": "nvapi-REPLACE_WITH_YOUR_KEY",
+    "model": "meta/llama-3.1-8b-instruct"
+  },
+  "mcp": {
+    "apiUrl": "http://localhost:4000",
+    "tenantSlug": "northwind",
+    "email": "admin@northwind.test",
+    "password": "demo1234"
+  }
+}

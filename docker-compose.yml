@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reflo
+    ports:
+      # Host 5433 maps to the container's 5432 to avoid clashing with a local
+      # Postgres. Services reach the database over the compose network as db:5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reflo"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # Runtime role is unprivileged and subject to row-level security.
+      DATABASE_URL: postgres://reflo_app:reflo_app_pw@db:5432/reflo
+      # Superuser role, used only for migrations and seeding.
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@db:5432/reflo
+      REDIS_URL: redis://redis:6379
+      RUN_MIGRATIONS: "true"
+      RUN_SEED: "true"
+      AI_CONFIG_PATH: /app/config.json
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/health').then(r=>r.json()).then(j=>process.exit(j.status==='ok'?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # The browser reaches the API on the host-published port.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
