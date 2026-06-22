@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CoreModule } from './core/core.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health/health.controller';
+import { WidgetController } from './widget/widget.controller';
 import { TrackingController } from './tracking/tracking.controller';
 import { TrackingService } from './tracking/tracking.service';
 import { QueueService } from './queue/queue.service';
@@ -24,6 +25,7 @@ import { PortalController } from './portal/portal.controller';
   imports: [CoreModule, AuthModule],
   controllers: [
     HealthController,
+    WidgetController,
     TrackingController,
     OffersController,
     PartnersController,

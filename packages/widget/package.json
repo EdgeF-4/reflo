@@ -1,0 +1,11 @@
+{
+  "name": "@reflo/widget",
+  "version": "0.1.0",
+  "description": "Embeddable, cookie-free first-party tracking widget (script tag).",
+  "license": "Apache-2.0",
+  "main": "reflo.js",
+  "files": ["reflo.js", "demo.html"],
+  "scripts": {
+    "build": "node -e \"console.log('widget is a single static file: reflo.js')\""
+  }
+}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reflo widget demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+      input, button { font-size: 16px; padding: 8px; }
+      code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Partner landing page</h1>
+    <p>
+      This page loads the Reflo widget. Opening it records a first-party click,
+      and submitting the form records a lead. Watch the events appear under
+      <code>/track/event</code> on the API.
+    </p>
+
+    <form data-reflo-lead onsubmit="event.preventDefault(); alert('lead captured');">
+      <label>Email <input type="email" name="email" placeholder="you@example.com" required /></label>
+      <button type="submit">Get early access</button>
+    </form>
+
+    <!-- Point data-reflo-api at your running API. The public key is safe here;
+         the server validates the calling domain. -->
+    <script
+      src="http://localhost:4000/reflo.js"
+      data-reflo-key="pk_live_pro_8f2a"
+      data-reflo-api="http://localhost:4000"
+      data-reflo-partner="creator-pro"
+      data-reflo-auto="true"
+    ></script>
+  </body>
+</html>
