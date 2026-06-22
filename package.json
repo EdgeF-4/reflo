@@ -1,0 +1,20 @@
+{
+  "name": "reflo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hostable, developer-first partner and affiliate attribution and settlement platform.",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:domain": "npm run build --workspace @reflo/domain",
+    "build:widget": "npm run build --workspace @reflo/widget",
+    "test": "npm run test --workspace @reflo/domain",
+    "test:domain": "npm run test --workspace @reflo/domain"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
