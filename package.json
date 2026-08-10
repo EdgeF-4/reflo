@@ -12,9 +12,13 @@
     "build:domain": "npm run build --workspace @reflo/domain",
     "build:widget": "npm run build --workspace @reflo/widget",
     "test": "npm run test --workspace @reflo/domain",
-    "test:domain": "npm run test --workspace @reflo/domain"
+    "test:domain": "npm run test --workspace @reflo/domain",
+    "test:smoke": "bash scripts/smoke.sh"
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "@nestjs/common": "11.1.28"
   }
 }
