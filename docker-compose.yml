@@ -64,3 +64,11 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  default:
+    ipam:
+      config:
+        # A small explicit demo subnet avoids failure when Docker's automatic
+        # address pools are already allocated. Override if this range collides.
+        - subnet: ${REFLO_SUBNET:-10.253.240.0/24}

@@ -14,13 +14,19 @@ export class MoneyError extends Error {
 /** Assert a value is a safe, non-negative integer number of cents. */
 export function assertCents(value: number, label = 'amount'): number {
   if (!Number.isInteger(value)) {
-    throw new MoneyError(`${label} must be an integer number of cents, got ${value}`);
+    throw new MoneyError(
+      `${label} must be an integer number of cents, got ${value}. Next: convert the amount to whole minor units before retrying.`,
+    );
   }
   if (value < 0) {
-    throw new MoneyError(`${label} must be non-negative, got ${value}`);
+    throw new MoneyError(
+      `${label} must be non-negative, got ${value}. Next: pass an absolute amount and represent reversals as ledger events.`,
+    );
   }
   if (!Number.isSafeInteger(value)) {
-    throw new MoneyError(`${label} exceeds the safe integer range`);
+    throw new MoneyError(
+      `${label} exceeds the safe integer range. Next: split the amount into smaller safe-integer operations.`,
+    );
   }
   return value;
 }
@@ -32,7 +38,9 @@ export function assertCents(value: number, label = 'amount'): number {
 export function applyBps(amountCents: number, rateBps: number): number {
   assertCents(amountCents, 'amountCents');
   if (!Number.isInteger(rateBps) || rateBps < 0) {
-    throw new MoneyError(`rateBps must be a non-negative integer, got ${rateBps}`);
+    throw new MoneyError(
+      `rateBps must be a non-negative integer, got ${rateBps}. Next: provide whole basis points, where 10000 means 100%.`,
+    );
   }
   // Math.round rounds .5 away from zero for positive numbers, which is the
   // conventional "round half up" merchants expect on invoices.
@@ -51,16 +59,22 @@ export function allocateByWeight(totalCents: number, weights: number[]): number[
   assertCents(totalCents, 'totalCents');
   if (weights.length === 0) {
     if (totalCents !== 0) {
-      throw new MoneyError('cannot allocate a non-zero total across zero weights');
+      throw new MoneyError(
+        'cannot allocate a non-zero total across zero weights. Next: provide at least one positive recipient weight.',
+      );
     }
     return [];
   }
   if (weights.some((w) => w < 0)) {
-    throw new MoneyError('weights must be non-negative');
+    throw new MoneyError(
+      'weights must be non-negative. Next: replace negative weights with zero or a positive share.',
+    );
   }
   const sum = weights.reduce((a, b) => a + b, 0);
   if (sum <= 0) {
-    throw new MoneyError('weights must sum to a positive number');
+    throw new MoneyError(
+      'weights must sum to a positive number. Next: provide at least one weight greater than zero.',
+    );
   }
 
   const exact = weights.map((w) => (totalCents * w) / sum);

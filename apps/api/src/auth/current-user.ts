@@ -7,7 +7,11 @@ import { DbScope } from '../db/db.service';
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthContext => {
     const req = ctx.switchToHttp().getRequest<Request>();
-    if (!req.auth) throw new Error('CurrentUser used on an unauthenticated route');
+    if (!req.auth) {
+      throw new Error(
+        'CurrentUser used on an unauthenticated route. Next: add JwtGuard to the controller before using CurrentUser.',
+      );
+    }
     return req.auth;
   },
 );

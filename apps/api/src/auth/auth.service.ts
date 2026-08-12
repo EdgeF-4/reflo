@@ -35,10 +35,18 @@ export class AuthService {
       );
       return res.rows[0];
     });
-    if (!row) throw new UnauthorizedException('invalid credentials');
+    if (!row) {
+      throw new UnauthorizedException(
+        'invalid credentials. Next: use a seeded demo account from the login page and retry.',
+      );
+    }
 
     const ok = await bcrypt.compare(password, row.password_hash);
-    if (!ok) throw new UnauthorizedException('invalid credentials');
+    if (!ok) {
+      throw new UnauthorizedException(
+        'invalid credentials. Next: use a seeded demo account from the login page and retry.',
+      );
+    }
 
     const ctx: AuthContext = {
       userId: row.id,
@@ -56,7 +64,9 @@ export class AuthService {
       const payload = await this.jwt.verifyAsync<AuthContext>(token);
       return payload;
     } catch {
-      throw new UnauthorizedException('invalid token');
+      throw new UnauthorizedException(
+        'invalid token. Next: sign in again at POST /auth/login and replace the bearer token.',
+      );
     }
   }
 }

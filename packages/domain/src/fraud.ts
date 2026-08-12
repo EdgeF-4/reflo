@@ -72,7 +72,11 @@ export interface FraudAssessment {
 
 function parse(iso: string): number {
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) throw new Error(`invalid timestamp: ${iso}`);
+  if (Number.isNaN(t)) {
+    throw new Error(
+      `invalid timestamp: ${iso}. Next: provide an ISO-8601 timestamp such as 2026-06-01T12:00:00Z.`,
+    );
+  }
   return t;
 }
 

@@ -9,7 +9,9 @@ import type { CommissionRule } from '@reflo/domain';
 function assertRule(rule: CommissionRule): void {
   const kinds = ['percentage', 'flat', 'tiered', 'recurring'];
   if (!rule || !kinds.includes((rule as { type: string }).type)) {
-    throw new BadRequestException('commission rule must be percentage, flat, tiered or recurring');
+    throw new BadRequestException(
+      'commission rule must be percentage, flat, tiered or recurring. Next: set rule.type to one of those four values and provide its required fields.',
+    );
   }
 }
 

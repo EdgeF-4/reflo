@@ -37,7 +37,9 @@ export function computeCommission(rule: CommissionRule, ctx: CommissionContext):
 
     case 'tiered': {
       if (rule.tiers.length === 0) {
-        throw new MoneyError('tiered rule needs at least one band');
+        throw new MoneyError(
+          'tiered rule needs at least one band. Next: add a band with minSaleCents and rateBps.',
+        );
       }
       // Pick the highest band whose threshold the sale clears.
       const applicable = rule.tiers
@@ -49,7 +51,9 @@ export function computeCommission(rule: CommissionRule, ctx: CommissionContext):
 
     case 'recurring': {
       if (cycle < 1) {
-        throw new MoneyError(`cycle must be >= 1, got ${cycle}`);
+        throw new MoneyError(
+          `cycle must be >= 1, got ${cycle}. Next: number the first recurring billing cycle as 1.`,
+        );
       }
       if (rule.maxCycles !== undefined && cycle > rule.maxCycles) {
         return 0; // revshare has expired for this customer
@@ -59,7 +63,9 @@ export function computeCommission(rule: CommissionRule, ctx: CommissionContext):
 
     default: {
       const _exhaustive: never = rule;
-      throw new MoneyError(`unknown commission rule: ${JSON.stringify(_exhaustive)}`);
+      throw new MoneyError(
+        `unknown commission rule: ${JSON.stringify(_exhaustive)}. Next: choose percentage, flat, tiered, or recurring.`,
+      );
     }
   }
 }

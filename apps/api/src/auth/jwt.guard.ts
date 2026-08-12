@@ -12,7 +12,9 @@ export class JwtGuard implements CanActivate {
     const header = req.headers.authorization ?? '';
     const [scheme, token] = header.split(' ');
     if (scheme !== 'Bearer' || !token) {
-      throw new UnauthorizedException('missing bearer token');
+      throw new UnauthorizedException(
+        'missing bearer token. Next: sign in at POST /auth/login and send the returned token as Authorization: Bearer <token>.',
+      );
     }
     req.auth = await this.auth.verify(token);
     return true;

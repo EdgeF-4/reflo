@@ -70,7 +70,9 @@ export class IllegalTransitionError extends Error {
     public readonly from: LedgerState | 'none',
     public readonly via: LedgerEventType,
   ) {
-    super(`illegal ledger transition: cannot apply "${via}" while in state "${from}"`);
+    super(
+      `illegal ledger transition: cannot apply "${via}" while in state "${from}". Next: inspect nextState() and submit a transition allowed from "${from}".`,
+    );
     this.name = 'IllegalTransitionError';
   }
 }
@@ -108,7 +110,9 @@ export function canTransition(from: LedgerState | 'none', via: LedgerEventType):
  */
 export function foldEntry(events: LedgerEvent[]): LedgerEntryView {
   if (events.length === 0) {
-    throw new Error('cannot fold an empty ledger stream');
+    throw new Error(
+      'cannot fold an empty ledger stream. Next: start the stream with an accrued event at sequence 1.',
+    );
   }
 
   let state: LedgerState | 'none' = 'none';
@@ -117,7 +121,9 @@ export function foldEntry(events: LedgerEvent[]): LedgerEntryView {
 
   events.forEach((ev, idx) => {
     if (ev.seq !== idx + 1) {
-      throw new Error(`ledger stream out of order: expected seq ${idx + 1}, got ${ev.seq}`);
+      throw new Error(
+        `ledger stream out of order: expected seq ${idx + 1}, got ${ev.seq}. Next: sort events by sequence and repair the missing or duplicate sequence.`,
+      );
     }
     const target = nextState(state, ev.type);
     if (target === null) {
@@ -128,11 +134,15 @@ export function foldEntry(events: LedgerEvent[]): LedgerEntryView {
       amountCents = assertCents(ev.amountCents ?? -1, 'accrued amount');
     } else if (ev.type === 'adjusted') {
       if (ev.amountCents === undefined) {
-        throw new Error('adjusted event requires a signed amountCents delta');
+        throw new Error(
+          'adjusted event requires a signed amountCents delta. Next: set amountCents to the positive or negative correction.',
+        );
       }
       const updated = amountCents + ev.amountCents;
       if (updated < 0) {
-        throw new Error('adjustment would drive the entry amount negative');
+        throw new Error(
+          'adjustment would drive the entry amount negative. Next: reduce the negative delta or reverse the entry instead.',
+        );
       }
       amountCents = updated;
     }

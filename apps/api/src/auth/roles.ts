@@ -27,7 +27,9 @@ export class RolesGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const role = req.auth?.role;
     if (!role || !required.includes(role)) {
-      throw new ForbiddenException(`requires role: ${required.join(' or ')}`);
+      throw new ForbiddenException(
+        `requires role: ${required.join(' or ')}. Next: sign in with one of those roles or use a route allowed for the current account.`,
+      );
     }
     return true;
   }

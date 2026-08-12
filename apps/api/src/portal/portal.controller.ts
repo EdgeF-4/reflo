@@ -20,7 +20,9 @@ export class PortalController {
 
   private guard(user: AuthContext) {
     if (user.role !== 'partner' || !user.partnerId) {
-      throw new ForbiddenException('partner account required');
+      throw new ForbiddenException(
+        'partner account required. Next: sign in with the seeded partner account before using portal routes.',
+      );
     }
   }
 

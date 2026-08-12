@@ -35,7 +35,9 @@ export class AiService {
         model: ai.model ?? 'meta/llama-3.1-8b-instruct',
       };
     } catch (err) {
-      this.logger.warn(`could not read AI config: ${(err as Error).message}`);
+      this.logger.warn(
+        `could not read optional provider config: ${(err as Error).message}. Next: fix the JSON file at AI_CONFIG_PATH or remove it to use deterministic insights.`,
+      );
       return null;
     }
   }
@@ -59,13 +61,17 @@ export class AiService {
         }),
       });
       if (!res.ok) {
-        this.logger.warn(`AI provider returned ${res.status}`);
+        this.logger.warn(
+          `optional provider returned ${res.status}. Next: verify the provider URL, model, and credential or remove the config to use deterministic insights.`,
+        );
         return null;
       }
       const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
       return json.choices?.[0]?.message?.content ?? null;
     } catch (err) {
-      this.logger.warn(`AI request failed: ${(err as Error).message}`);
+      this.logger.warn(
+        `optional provider request failed: ${(err as Error).message}. Next: verify provider reachability or remove the config to use deterministic insights.`,
+      );
       return null;
     }
   }

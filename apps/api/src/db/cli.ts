@@ -16,7 +16,9 @@ async function main() {
       const { seeded } = await seedDemo(pool);
       console.log(seeded ? 'demo data seeded' : 'demo data already present, skipped');
     } else {
-      console.error('usage: cli.js <migrate|seed>');
+      console.error(
+        'usage: cli.js <migrate|seed>. Next: choose `migrate` to apply schema changes or `seed` to load the demo.',
+      );
       process.exit(1);
     }
   } finally {
@@ -25,6 +27,9 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(
+    'database command failed. Next: verify ADMIN_DATABASE_URL and database health, then retry the same command.',
+    err,
+  );
   process.exit(1);
 });

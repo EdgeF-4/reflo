@@ -46,7 +46,9 @@ const DAY_MS = 86_400_000;
 function toMs(iso: string): number {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) {
-    throw new Error(`invalid timestamp: ${iso}`);
+    throw new Error(
+      `invalid timestamp: ${iso}. Next: provide an ISO-8601 timestamp such as 2026-06-01T12:00:00Z.`,
+    );
   }
   return t;
 }
@@ -109,7 +111,9 @@ function touchWeights(touches: Touchpoint[], input: AttributionInput): number[] 
       return raw.map((x) => x / sum);
     }
     default:
-      throw new Error(`unknown attribution model: ${input.model}`);
+      throw new Error(
+        `unknown attribution model: ${input.model}. Next: choose last_touch, first_touch, linear, position_based, or time_decay.`,
+      );
   }
 }
 

@@ -34,7 +34,11 @@ export class LedgerService {
   async history(auth: AuthContext, entryId: string) {
     return this.db.runAs(scopeFor(auth), async (q) => {
       const entry = await q.query('SELECT * FROM ledger_entries WHERE id = $1', [entryId]);
-      if (!entry.rowCount) throw new NotFoundException('ledger entry not found');
+      if (!entry.rowCount) {
+        throw new NotFoundException(
+          'ledger entry not found. Next: copy an entry id from GET /ledger/entries and retry.',
+        );
+      }
       const events = await q.query(
         'SELECT * FROM ledger_events WHERE entry_id = $1 ORDER BY seq ASC',
         [entryId],
@@ -48,7 +52,9 @@ export class LedgerService {
     return this.db.runAs(scopeFor(auth), async (q) => {
       const view = await this.loadView(q, entryId);
       if (!nextState(view.state, type)) {
-        throw new BadRequestException(`cannot apply "${type}" while in state "${view.state}"`);
+        throw new BadRequestException(
+          `cannot apply "${type}" while in state "${view.state}". Next: refresh the entry events and choose a transition allowed from "${view.state}".`,
+        );
       }
       const updated = await this.append(q, entryId, type, reason, auth.email);
       await this.audit.record(q, auth, {
@@ -103,7 +109,11 @@ export class LedgerService {
   /** Load and fold an entry's event stream to know its authoritative state. */
   private async loadView(q: Querier, entryId: string) {
     const entry = await q.query('SELECT id FROM ledger_entries WHERE id = $1', [entryId]);
-    if (!entry.rowCount) throw new NotFoundException('ledger entry not found');
+    if (!entry.rowCount) {
+      throw new NotFoundException(
+        'ledger entry not found. Next: copy an entry id from GET /ledger/entries and retry.',
+      );
+    }
     const events = await q.query<{ seq: number; type: LedgerEvent['type']; amountCents: string | null; at: string }>(
       'SELECT seq, type, amount_cents AS "amountCents", occurred_at AS at FROM ledger_events WHERE entry_id = $1 ORDER BY seq ASC',
       [entryId],

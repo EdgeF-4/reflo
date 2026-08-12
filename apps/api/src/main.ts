@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { loadConfig } from './config';
 import { applyMigrations } from './db/migrate';
 import { seedDemo } from './db/seed';
+import { ActionableExceptionFilter } from './core/actionable-exception.filter';
 
 async function bootstrap() {
   const cfg = loadConfig();
@@ -31,12 +32,16 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, { cors: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalFilters(new ActionableExceptionFilter());
   await app.listen(cfg.port, '0.0.0.0');
   logger.log(`Reflo API listening on :${cfg.port}`);
 }
 
 bootstrap().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('failed to start API', err);
+  console.error(
+    'failed to start API. Next: run `docker compose ps` and `docker compose logs db redis`, fix the unavailable dependency, then restart the stack.',
+    err,
+  );
   process.exit(1);
 });

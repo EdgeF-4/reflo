@@ -13,7 +13,9 @@ export function resolveMigrationsDir(): string {
   for (const dir of candidates) {
     if (existsSync(dir)) return dir;
   }
-  throw new Error(`could not locate db/migrations (looked in: ${candidates.join(', ')})`);
+  throw new Error(
+    `could not locate db/migrations (looked in: ${candidates.join(', ')}). Next: run from the repository root or set MIGRATIONS_DIR to the migrations directory.`,
+  );
 }
 
 /**
@@ -44,7 +46,9 @@ export async function applyMigrations(pool: Pool, dir = resolveMigrationsDir()):
       applied.push(file);
     } catch (err) {
       await client.query('ROLLBACK');
-      throw new Error(`migration ${file} failed: ${(err as Error).message}`);
+      throw new Error(
+        `migration ${file} failed: ${(err as Error).message}. Next: inspect that migration and the database log, correct the failing statement, then restart the API.`,
+      );
     } finally {
       client.release();
     }

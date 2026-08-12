@@ -68,12 +68,18 @@ export class TrackingService {
       );
       return res.rows[0];
     });
-    if (!key || !key.active) throw new NotFoundException('unknown or inactive tracking key');
+    if (!key || !key.active) {
+      throw new NotFoundException(
+        'unknown or inactive tracking key. Next: copy an active public key from the seeded tracking_keys data and retry.',
+      );
+    }
 
     const h = host(sourceSite);
     const allowed = key.allowed_domains.some((d) => h === d.toLowerCase() || h.endsWith(`.${d.toLowerCase()}`));
     if (!allowed) {
-      throw new ForbiddenException(`source domain "${h}" is not allowed for this key`);
+      throw new ForbiddenException(
+        `source domain "${h}" is not allowed for this key. Next: send the event from a domain in this key's allowed_domains list.`,
+      );
     }
     return key;
   }
@@ -125,7 +131,11 @@ export class TrackingService {
    */
   async recordConversion(input: ConversionInput) {
     const key = await this.authorizeKey(input.publicKey, input.sourceSite);
-    if (!key.offer_id) throw new BadRequestException('tracking key is not bound to an offer');
+    if (!key.offer_id) {
+      throw new BadRequestException(
+        'tracking key is not bound to an offer. Next: bind the key to an active offer before recording conversions.',
+      );
+    }
     const model: AttributionModel = input.model ?? 'position_based';
 
     const result = await this.db.runAs({ tenantId: key.tenant_id }, async (q) => {

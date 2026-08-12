@@ -23,7 +23,13 @@ export function getToken(): string | null {
 export function getUser(): SessionUser | null {
   if (typeof window === 'undefined') return null;
   const raw = window.localStorage.getItem(USER_KEY);
-  return raw ? (JSON.parse(raw) as SessionUser) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SessionUser;
+  } catch {
+    clearSession();
+    return null;
+  }
 }
 
 export function setSession(token: string, user: SessionUser): void {
@@ -38,17 +44,26 @@ export function clearSession(): void {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    throw new Error(
+      `Cannot reach the API at ${API_URL}. Next: confirm the Compose demo is running and retry. Cause: ${(err as Error).message}`,
+    );
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${detail.slice(0, 200)}`);
+    throw new Error(
+      `HTTP ${res.status}: ${detail.slice(0, 200)}. Next: correct the request or sign in again, then retry.`,
+    );
   }
   return res.json() as Promise<T>;
 }

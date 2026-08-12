@@ -14,10 +14,10 @@ split trust and support.
 ## Known limits
 
 - Live conversion fraud blocking is outside the verified scope. Do not rely on block behavior from this snapshot.
-- The 46 unit tests cover the pure domain package only. They do not cover HTTP routes, browser behavior, queue jobs, or cross-tenant isolation.
+- The 50 unit tests cover the pure domain package only. They do not cover HTTP routes, browser behavior, queue jobs, or cross-tenant isolation.
 - Seeded credentials and fallback secrets are for loopback evaluation only.
 - The optional external model-provider path and protocol write behavior are outside the verified scope.
-- Dependency maintenance is incomplete because one queue dependency still carries a deprecated transitive parser. Major queue work belongs in the maintained successor.
+- Dependency majors that require product migrations are held deliberately and documented in [DEPENDENCIES.md](DEPENDENCIES.md). New platform work belongs in the maintained successor.
 - This snapshot is not supported for production, new integrations, or new feature work.
 
 ## Quickstart
@@ -32,10 +32,10 @@ Requirements:
 From the repository root:
 
 ```bash
-docker compose up --build
+docker compose up --build --wait
 ```
 
-The first run builds the API and web app, creates a fresh database, applies four migrations, and seeds a demo workspace. When the API reports that it is listening, open:
+The command waits until the first run has built the API and web app, created a fresh database, applied four migrations, seeded a demo workspace, and passed the service health checks. Then open:
 
 - Dashboard: http://localhost:3000
 - Health check: http://localhost:4000/health
@@ -56,14 +56,18 @@ The login page provides pre-filled demo credentials and buttons for the admin, a
 
 The API and web app bind to `127.0.0.1`. The database and cache stay inside the Compose network and are not published to the host.
 
-Press `Ctrl+C` in the Compose terminal to stop the demo.
+When finished, stop the demo without removing its containers or data:
+
+```bash
+docker compose stop
+```
 
 ## Verify the running demo
 
 In another terminal:
 
 ```bash
-npm install
+npm ci
 npm run test:smoke
 ```
 
@@ -72,15 +76,15 @@ The smoke script requires `curl` and `jq`. It checks health, the web response, b
 ## Unit tests
 
 ```bash
-npm install
+npm ci
 npm run test:domain
 ```
 
 Expected result:
 
 ```text
-Test Files  5 passed (5)
-Tests       46 passed (46)
+Test Files  6 passed (6)
+Tests       50 passed (50)
 ```
 
 These tests cover exact-cent allocation, ledger state transitions, five attribution models, commission rules, and pure fraud-signal scoring.
@@ -88,40 +92,43 @@ These tests cover exact-cent allocation, ledger state transitions, five attribut
 ## Dependency check
 
 ```bash
-npm install
+npm ci
 npm audit --audit-level=low
+npm run test:dependencies
 npm ls cron-parser
 ```
 
 The advisory check returns zero known vulnerabilities on this branch.
-The tree check also exposes the deferred `cron-parser@4.9.0` dependency beneath `bullmq@5.81.3`.
+The contract check confirms exact direct pins and the tree resolves supported
+`cron-parser@5.8.1` beneath `bullmq@6.1.0`. Current major holds and their tested
+compatibility reasons are recorded in [DEPENDENCIES.md](DEPENDENCIES.md).
 
 ## What these commands prove
 
-`docker compose up --build` and `npm run test:smoke` prove only that the local API, web app, database health, seeded admin views, seeded partner views, reports, ledger reads, and deterministic insights work together.
+`docker compose up --build --wait` and `npm run test:smoke` prove only that the local API, web app, database health, seeded admin views, seeded partner views, reports, ledger reads, deterministic insights, and actionable HTTP failure responses work together.
 
-`npm run test:domain` proves only the pure money, attribution, commission, ledger-transition, and fraud-scoring cases represented by its 46 tests.
+`npm run test:domain` proves only the pure money, attribution, commission, ledger-transition, fraud-scoring, and actionable domain-error cases represented by its 50 tests.
 
 They do not prove production hardening, cross-tenant isolation, live fraud blocking, backup recovery, queue recovery, or protocol write behavior.
 
 ## Troubleshooting
 
-### `all predefined address pools have been fully subnetted`
+### `Pool overlaps with other one on this address space`
 
-The local Docker daemon has exhausted its network address pools before Reflo can create its Compose network.
-Do not remove networks you do not own.
-Ask the Docker administrator to reclaim unused Compose networks or expand Docker's configured address pools,
-then rerun:
+The demo's explicit local subnet conflicts with another route on this machine.
+Do not remove networks you do not own. Ask the Docker administrator for an
+unused private `/24`, then retry with that value:
 
 ```bash
-docker compose up --build
+REFLO_SUBNET=<unused-private-subnet> docker compose up --build --wait
 ```
 
 ### `curl: (7) Failed to connect`
 
-The Compose process is stopped or the API is not ready. Keep `docker compose up --build` running in its first terminal, wait for `Reflo API listening on :4000`, then retry:
+The Compose services are stopped or the API is not ready. Start them, wait for the command to report healthy services, then retry:
 
 ```bash
+docker compose up --build --wait
 curl --fail --silent --show-error http://localhost:4000/health
 npm run test:smoke
 ```
@@ -148,7 +155,7 @@ npm run test:smoke
 The Node.js dependencies were not installed in this checkout. From the repository root, run:
 
 ```bash
-npm install
+npm ci
 npm run test:domain
 ```
 

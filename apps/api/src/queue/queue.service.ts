@@ -46,7 +46,16 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       },
       { connection },
     );
-    this.worker.on('failed', (job, err) => this.logger.warn(`job ${job?.id} failed: ${err.message}`));
+    this.worker.on('failed', (job, err) =>
+      this.logger.warn(
+        `job ${job?.id} failed: ${err.message}. Next: inspect the entry state and Redis health, then retry only if the transition is still valid.`,
+      ),
+    );
+    this.connection.on('error', (err) =>
+      this.logger.error(
+        `Redis connection failed: ${err.message}. Next: run \`docker compose ps redis\` and \`docker compose logs redis\`, restore Redis, then restart the API.`,
+      ),
+    );
     this.logger.log('settlement queue worker started');
   }
 

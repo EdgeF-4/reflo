@@ -2,7 +2,7 @@
   "name": "reflo",
   "version": "0.1.0",
   "private": true,
-  "description": "Self-hostable, developer-first partner and affiliate attribution and settlement platform.",
+  "description": "Superseded runnable snapshot of a partner attribution and settlement demo.",
   "license": "Apache-2.0",
   "workspaces": [
     "packages/*",
@@ -13,12 +13,13 @@
     "build:widget": "npm run build --workspace @reflo/widget",
     "test": "npm run test --workspace @reflo/domain",
     "test:domain": "npm run test --workspace @reflo/domain",
+    "test:dependencies": "node scripts/dependency-contract.mjs",
     "test:smoke": "bash scripts/smoke.sh"
   },
   "engines": {
     "node": ">=20"
   },
   "overrides": {
-    "@nestjs/common": "11.1.28"
+    "@nestjs/common": "11.1.29"
   }
 }

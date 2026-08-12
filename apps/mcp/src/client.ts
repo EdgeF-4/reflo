@@ -34,9 +34,26 @@ export class RefloClient {
   private token?: string;
   constructor(private readonly cfg: McpConfig) {}
 
+  private async call(path: string, init?: RequestInit): Promise<Response> {
+    try {
+      return await fetch(`${this.cfg.apiUrl}${path}`, init);
+    } catch (err) {
+      throw new Error(
+        `cannot reach Reflo API at ${this.cfg.apiUrl}. Next: start the demo with \`docker compose up --build\`, verify /health, then retry. Cause: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  private async failure(res: Response, operation: string): Promise<Error> {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    return new Error(
+      `${operation} failed with HTTP ${res.status}${detail ? `: ${detail}` : ''}. Next: verify the configured account, route, and running API, then retry.`,
+    );
+  }
+
   private async ensureToken(): Promise<string> {
     if (this.token) return this.token;
-    const res = await fetch(`${this.cfg.apiUrl}/auth/login`, {
+    const res = await this.call('/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -45,7 +62,7 @@ export class RefloClient {
         password: this.cfg.password,
       }),
     });
-    if (!res.ok) throw new Error(`login failed: HTTP ${res.status}`);
+    if (!res.ok) throw await this.failure(res, 'login');
     const json = (await res.json()) as { token: string };
     this.token = json.token;
     return this.token;
@@ -53,21 +70,21 @@ export class RefloClient {
 
   async get(path: string): Promise<unknown> {
     const token = await this.ensureToken();
-    const res = await fetch(`${this.cfg.apiUrl}${path}`, {
+    const res = await this.call(path, {
       headers: { authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`);
+    if (!res.ok) throw await this.failure(res, `GET ${path}`);
     return res.json();
   }
 
   async post(path: string, body: unknown): Promise<unknown> {
     const token = await this.ensureToken();
-    const res = await fetch(`${this.cfg.apiUrl}${path}`, {
+    const res = await this.call(path, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`);
+    if (!res.ok) throw await this.failure(res, `POST ${path}`);
     return res.json();
   }
 }

@@ -18,78 +18,79 @@ function text(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
 }
 
-server.tool(
+server.registerTool(
   'reflo_program_summary',
-  'Program KPIs: outstanding liability, paid total, conversion and fraud counts.',
-  {},
+  { description: 'Program KPIs: outstanding liability, paid total, conversion and fraud counts.' },
   async () => text(await client.get('/reports/summary')),
 );
 
-server.tool(
+server.registerTool(
   'reflo_partner_leaderboard',
-  'Partners ranked by settled and outstanding commission.',
-  {},
+  { description: 'Partners ranked by settled and outstanding commission.' },
   async () => text(await client.get('/reports/partners')),
 );
 
-server.tool(
+server.registerTool(
   'reflo_ledger_entries',
-  'List settlement-ledger entries, optionally filtered by state.',
   {
-    state: z
-      .enum(['pending', 'confirmed', 'payable', 'paid', 'reversed', 'clawed_back'])
-      .optional()
-      .describe('Filter by ledger state.'),
+    description: 'List settlement-ledger entries, optionally filtered by state.',
+    inputSchema: {
+      state: z
+        .enum(['pending', 'confirmed', 'payable', 'paid', 'reversed', 'clawed_back'])
+        .optional()
+        .describe('Filter by ledger state.'),
+    },
   },
   async ({ state }) => text(await client.get(`/ledger/entries${state ? `?state=${state}` : ''}`)),
 );
 
-server.tool(
+server.registerTool(
   'reflo_fraud_assessments',
-  'Recent fraud assessments, highest risk first, with the signals that fired.',
-  {},
+  { description: 'Recent fraud assessments, highest risk first, with the signals that fired.' },
   async () => text(await client.get('/reports/fraud')),
 );
 
-server.tool(
+server.registerTool(
   'reflo_partner_insights',
-  'AI-assisted partner performance insights (deterministic without a model key).',
-  {},
+  { description: 'Optional narrative partner insights with a deterministic no-provider fallback.' },
   async () => text(await client.get('/insights/partners')),
 );
 
-server.tool(
+server.registerTool(
   'reflo_record_conversion',
-  'Record a server-to-server conversion through the attribution and fraud pipeline.',
   {
-    publicKey: z.string().describe('Tracking key public id.'),
-    orderId: z.string(),
-    amountCents: z.number().int().min(0),
-    customerRef: z.string(),
-    sourceSite: z.string().describe('Origin domain (must be allowed for the key).'),
-    model: z
-      .enum(['last_touch', 'first_touch', 'linear', 'position_based', 'time_decay'])
-      .optional(),
+    description: 'Record a server-to-server conversion through the attribution and fraud pipeline.',
+    inputSchema: {
+      publicKey: z.string().describe('Tracking key public id.'),
+      orderId: z.string(),
+      amountCents: z.number().int().min(0),
+      customerRef: z.string(),
+      sourceSite: z.string().describe('Origin domain (must be allowed for the key).'),
+      model: z
+        .enum(['last_touch', 'first_touch', 'linear', 'position_based', 'time_decay'])
+        .optional(),
+    },
   },
   async (args) => text(await client.post('/track/conversion', args)),
 );
 
-server.tool(
+server.registerTool(
   'reflo_transition_ledger_entry',
-  'Advance a ledger entry through the settlement state machine.',
   {
-    entryId: z.string(),
-    type: z.enum(['confirmed', 'marked_payable', 'paid', 'reversed', 'clawed_back']),
-    reason: z.string().optional(),
+    description: 'Advance a ledger entry through the settlement state machine.',
+    inputSchema: {
+      entryId: z.string(),
+      type: z.enum(['confirmed', 'marked_payable', 'paid', 'reversed', 'clawed_back']),
+      reason: z.string().optional(),
+    },
   },
   async ({ entryId, type, reason }) =>
     text(await client.post(`/ledger/entries/${entryId}/transition`, { type, reason })),
 );
 
-server.tool(
+server.registerTool(
   'reflo_run_payouts',
-  'Settle every payable entry into a payout batch per partner.',
-  {},
+  { description: 'Settle every payable entry into a payout batch per partner.' },
   async () => text(await client.post('/ledger/payouts/run', {})),
 );
 
@@ -100,6 +101,9 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('reflo mcp failed:', err);
+  console.error(
+    'reflo mcp failed. Next: start the API, verify the MCP config values, then restart this process:',
+    err,
+  );
   process.exit(1);
 });
