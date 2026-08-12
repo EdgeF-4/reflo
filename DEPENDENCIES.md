@@ -13,6 +13,15 @@ dependency is exact-pinned and `package-lock.json` fixes the transitive tree.
 - Nest HTTP packages are aligned on 11.1.29.
 - The protocol server uses the current `registerTool` API in SDK 1.30.0 rather
   than its deprecated `tool` API.
+- The API and web runtimes use the current minimal Node image at an immutable
+  digest. Build tooling is confined to the development-image stages, and the
+  deployed images run as user 65532.
+- PostgreSQL stays on 16.14 through a small Alpine image built from an
+  immutable base and exact operating-system packages. This avoids an
+  unnecessary data-major migration. Redis 7 is also pinned by digest.
+- Cached Trivy 0.73 scans cover UNKNOWN, LOW, MEDIUM, HIGH, and CRITICAL
+  severities and fail on the first finding. The API, web, database, and cache
+  images each return zero findings.
 
 ## Deliberate holds
 
@@ -30,8 +39,9 @@ dependency is exact-pinned and `package-lock.json` fixes the transitive tree.
   migration. That redesign belongs in the maintained successor, not this
   historical snapshot.
 - Node type declarations are held at 20.19.43 because Node 20 is the documented
-  minimum and container runtime. Using Node 26 declarations would allow APIs
-  unavailable to the supported runtime.
+  minimum for source verification. The container uses the current minimal Node
+  runtime, but using newer declarations would allow APIs unavailable to that
+  supported source-install floor.
 
 These holds are compatibility decisions, not ignored advisories. The registry
 audit is clean. Revisit them only if this repository becomes maintained again.

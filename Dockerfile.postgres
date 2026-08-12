@@ -1,0 +1,28 @@
+# PostgreSQL 16 runtime without a package manager helper or build tools.
+# Exact package versions and the immutable base make rebuilds reviewable.
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+
+RUN apk add --no-cache \
+      postgresql16=16.14-r0 \
+      postgresql16-client=16.14-r0 \
+      postgresql16-contrib=16.14-r0 \
+ && sed -i 's/^postgres:x:70:70:/postgres:x:999:999:/' /etc/passwd \
+ && sed -i \
+      -e 's/^postgres:x:70:/postgres-alpine:x:70:/' \
+      -e 's/^ping:x:999:/postgres:x:999:/' \
+      /etc/group \
+ && install -d -m 0700 -o postgres -g postgres /var/lib/postgresql/data \
+ && install -d -m 0775 -o postgres -g postgres /run/postgresql
+
+COPY docker/postgres-entrypoint.sh /usr/local/bin/postgres-entrypoint
+
+ENV PGDATA=/var/lib/postgresql/data
+
+VOLUME ["/var/lib/postgresql/data"]
+
+USER postgres
+
+EXPOSE 5432
+
+ENTRYPOINT ["/usr/local/bin/postgres-entrypoint"]
+CMD ["postgres"]

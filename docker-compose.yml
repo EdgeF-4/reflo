@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: reflo-postgres:16.14-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -8,13 +11,13 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d reflo"]
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "reflo"]
       interval: 3s
       timeout: 3s
       retries: 20
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
@@ -22,6 +25,7 @@ services:
       retries: 20
 
   api:
+    image: reflo-api:gate9-20260812
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -42,14 +46,15 @@ services:
       RUN_SEED: "true"
       AI_CONFIG_PATH: /app/config.json
     ports:
-      - "127.0.0.1:4000:4000"
+      - "127.0.0.1:${REFLO_API_PORT:-4000}:4000"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/health').then(r=>r.json()).then(j=>process.exit(j.status==='ok'?0:1)).catch(()=>process.exit(1))\""]
+      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://localhost:4000/health').then(r=>r.json()).then(j=>process.exit(j.status==='ok'?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   web:
+    image: reflo-web:gate9-20260812
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -60,7 +65,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${REFLO_WEB_PORT:-3000}:3000"
 
 volumes:
   pgdata:

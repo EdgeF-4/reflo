@@ -102,6 +102,9 @@ The advisory check returns zero known vulnerabilities on this branch.
 The contract check confirms exact direct pins and the tree resolves supported
 `cron-parser@5.8.1` beneath `bullmq@6.1.0`. Current major holds and their tested
 compatibility reasons are recorded in [DEPENDENCIES.md](DEPENDENCIES.md).
+The Compose deployment also uses immutable remote image digests and an
+exact-package PostgreSQL build. Its four runtime images were scanned across
+all severities with cached Trivy 0.73 and returned zero findings.
 
 ## What these commands prove
 
@@ -138,6 +141,16 @@ If it still fails, inspect the local services and API log:
 ```bash
 docker compose ps
 docker compose logs api
+```
+
+If another local service already owns either demo port, choose free loopback
+ports and make the browser build use the same API port:
+
+```bash
+REFLO_API_PORT=4400 REFLO_WEB_PORT=3300 \
+NEXT_PUBLIC_API_URL=http://localhost:4400 \
+docker compose up --build --wait
+API_URL=http://127.0.0.1:4400 WEB_URL=http://127.0.0.1:3300 npm run test:smoke
 ```
 
 ### `missing required command: curl` or `missing required command: jq`
