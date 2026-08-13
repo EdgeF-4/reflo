@@ -15,20 +15,33 @@
 (function () {
   'use strict';
 
-  var current =
-    document.currentScript ||
-    (function () {
-      var s = document.getElementsByTagName('script');
-      return s[s.length - 1];
-    })();
-  var data = (current && current.dataset) || {};
-
   var config = {
-    key: data.refloKey || '',
-    api: (data.refloApi || '').replace(/\/$/, ''),
-    partner: data.refloPartner || paramFromUrl('ref') || undefined,
-    auto: data.refloAuto !== 'false',
+    key: '',
+    api: '',
+    partner: undefined,
+    auto: false,
   };
+  try {
+    var current =
+      document.currentScript ||
+      (function () {
+        var scripts = document.getElementsByTagName('script');
+        return scripts[scripts.length - 1];
+      })();
+    var data = (current && current.dataset) || {};
+    config = {
+      key: data.refloKey || '',
+      api: (data.refloApi || '').replace(/\/$/, ''),
+      partner: data.refloPartner || paramFromUrl('ref') || undefined,
+      auto: data.refloAuto !== 'false',
+    };
+  } catch (error) {
+    reportFailure(
+      'bootstrap',
+      error,
+      'restore normal script and document access, then reload the host page',
+    );
+  }
 
   function paramFromUrl(name) {
     try {
@@ -40,8 +53,12 @@
   }
 
   function errorText(error) {
-    if (error && typeof error.message === 'string') return error.message;
-    return String(error || 'unknown failure');
+    try {
+      if (error && typeof error.message === 'string') return error.message;
+      return String(error || 'unknown failure');
+    } catch (_) {
+      return 'unreadable error detail';
+    }
   }
 
   function reportFailure(operation, error, next) {
@@ -106,19 +123,57 @@
       });
     }
     opts = opts || {};
-    var body = {
-      publicKey: config.key,
-      type: type,
-      sourceSite: window.location.hostname,
-      partnerCode: opts.partner || config.partner,
-      customerRef: opts.customerRef || customerRef,
-    };
-    return fetch(config.api + '/track/event', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      keepalive: true,
-    }).then(function (response) {
+    var body;
+    try {
+      body = {
+        publicKey: config.key,
+        type: type,
+        sourceSite: window.location.hostname,
+        partnerCode: opts.partner || config.partner,
+        customerRef: opts.customerRef || customerRef,
+      };
+    } catch (error) {
+      return Promise.resolve({
+        ok: false,
+        error: reportFailure(
+          type + ' request configuration',
+          error,
+          'allow access to window.location and pass plain tracking options, then retry the event',
+        ),
+      });
+    }
+    var serialized;
+    try {
+      serialized = JSON.stringify(body);
+    } catch (error) {
+      return Promise.resolve({
+        ok: false,
+        error: reportFailure(
+          type + ' request payload',
+          error,
+          'pass a serializable string customerRef and partner value, then retry the event',
+        ),
+      });
+    }
+    var request;
+    try {
+      request = fetch(config.api + '/track/event', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: serialized,
+        keepalive: true,
+      });
+    } catch (error) {
+      return Promise.resolve({
+        ok: false,
+        error: reportFailure(
+          type + ' request',
+          error,
+          'confirm browser fetch support and data-reflo-api, then retry the event',
+        ),
+      });
+    }
+    return Promise.resolve(request).then(function (response) {
       if (!response.ok) {
         return response.text().catch(function (readError) {
           return 'could not read response body: ' + errorText(readError);
@@ -148,35 +203,84 @@
   }
 
   function bindForms() {
-    var forms = document.querySelectorAll('form[data-reflo-lead]');
-    Array.prototype.forEach.call(forms, function (form) {
-      form.addEventListener('submit', function () {
-        var emailField = form.querySelector('input[type="email"], input[name="email"]');
-        var ref = emailField && emailField.value ? emailField.value : customerRef;
-        send('lead_submit', { customerRef: ref });
+    try {
+      var forms = document.querySelectorAll('form[data-reflo-lead]');
+      Array.prototype.forEach.call(forms, function (form) {
+        try {
+          form.addEventListener('submit', function () {
+            try {
+              var emailField = form.querySelector('input[type="email"], input[name="email"]');
+              var ref = emailField && emailField.value ? emailField.value : customerRef;
+              send('lead_submit', { customerRef: ref });
+            } catch (error) {
+              reportFailure(
+                'lead form submission',
+                error,
+                'restore access to the marked form fields, then resubmit the form',
+              );
+            }
+          });
+        } catch (error) {
+          reportFailure(
+            'lead form binding',
+            error,
+            'use a normal form element for data-reflo-lead, then reload the page',
+          );
+        }
       });
-    });
+    } catch (error) {
+      reportFailure(
+        'lead form discovery',
+        error,
+        'restore document query access or disable data-reflo-auto, then reload the page',
+      );
+    }
   }
 
-  window.reflo = {
-    identify: function (ref) {
-      if (ref) customerRef = ref;
-    },
-    track: function (type, opts) {
-      return send(type === 'lead' ? 'lead_submit' : 'click', opts);
-    },
-  };
+  try {
+    window.reflo = {
+      identify: function (ref) {
+        if (ref) customerRef = ref;
+      },
+      track: function (type, opts) {
+        return send(type === 'lead' ? 'lead_submit' : 'click', opts);
+      },
+    };
+  } catch (error) {
+    reportFailure(
+      'public API installation',
+      error,
+      'allow the window.reflo property to be assigned, then reload the page',
+    );
+  }
 
-  if (config.auto) {
-    // Record the landing click as soon as the page is interactive.
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () {
-        send('click');
-        bindForms();
-      });
-    } else {
+  function startAutoTracking() {
+    try {
       send('click');
       bindForms();
+    } catch (error) {
+      reportFailure(
+        'automatic startup',
+        error,
+        'disable data-reflo-auto and call reflo.track after the document is ready',
+      );
+    }
+  }
+
+  if (config.auto) {
+    try {
+      // Record the landing click as soon as the page is interactive.
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startAutoTracking);
+      } else {
+        startAutoTracking();
+      }
+    } catch (error) {
+      reportFailure(
+        'document readiness binding',
+        error,
+        'disable data-reflo-auto and call reflo.track after the document is ready',
+      );
     }
   }
 })();

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api, reportActionableError } from '@/lib/api';
+import { actionableError, api, reportActionableError } from '@/lib/api';
 import { shortDate } from '@/lib/format';
 import { Badge, Card, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -30,7 +30,10 @@ export default function PartnersPage() {
       setEmail('');
       refetch();
     } catch (err) {
-      const message = (err as Error).message;
+      const message = actionableError(
+        err,
+        'inspect the partner request and API response, correct the cause, then retry.',
+      );
       setNote(message);
       reportActionableError(message);
     } finally {

@@ -3,6 +3,7 @@ import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import IORedis from 'ioredis';
 import { loadConfig } from '../config';
 import { LedgerService } from '../ledger/ledger.service';
+import { cleanupFailures } from '../db/failure-boundaries';
 
 const QUEUE_NAME = 'settlement';
 
@@ -53,6 +54,16 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         `job ${job?.id} failed: ${err.message}. Next: inspect the entry state and Redis health, then retry only if the transition is still valid.`,
       ),
     );
+    this.worker.on('error', (err) =>
+      this.logger.error(
+        `settlement worker failed: ${err.message}. Next: inspect Redis health and the worker stack, correct the cause, then restart the API.`,
+      ),
+    );
+    this.queue.on('error', (err) =>
+      this.logger.error(
+        `settlement queue failed: ${err.message}. Next: inspect Redis health and queue configuration, correct the cause, then retry the operation.`,
+      ),
+    );
     this.connection.on('error', (err) =>
       this.logger.error(
         `Redis connection failed: ${err.message}. Next: run \`docker compose ps redis\` and \`docker compose logs redis\`, restore Redis, then restart the API.`,
@@ -68,11 +79,13 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    const results = await Promise.allSettled([this.worker?.close(), this.queue?.close()]);
-    const failed = results.filter((result) => result.status === 'rejected') as PromiseRejectedResult[];
+    const failed = await cleanupFailures([
+      { name: 'worker close', run: () => this.worker?.close() },
+      { name: 'queue close', run: () => this.queue?.close() },
+    ]);
     if (failed.length) {
       this.logger.error(
-        `settlement queue shutdown failed: ${failed.map((result) => String(result.reason)).join('; ')}. Next: inspect active jobs and Redis health, then retry shutdown before restarting the API.`,
+        `settlement queue shutdown failed: ${failed.join('; ')}. Next: inspect active jobs and Redis health, then retry shutdown before restarting the API.`,
       );
     }
     try {

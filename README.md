@@ -80,6 +80,8 @@ npm ci
 npm run test:postgres-entrypoint
 npm run test:widget
 npm run test:api-failures
+npm run test:mcp-failures
+npm run test:web-failures
 npm run test:domain
 ```
 
@@ -92,11 +94,14 @@ Tests       50 passed (50)
 
 These tests cover exact-cent allocation, ledger state transitions, five attribution models, commission rules, and pure fraud-signal scoring.
 
-The API startup tests force database-pool cleanup, listen, and application-close
-failures. The entrypoint failure tests force raw `initdb`, `pg_ctl`, and `createdb`
-failures and verify the exact recovery action. The widget tests force missing
-configuration, blocked storage, HTTP refusal, and network failure while proving
-the host page remains usable and receives a `reflo:tracking-error` event.
+The API startup tests force database-pool cleanup, client release, listen, and
+application-close failures. The MCP and browser tests force malformed JSON,
+network, storage, serialization, and error-notification failures. The entrypoint
+failure tests force raw `initdb`, `pg_ctl`, `createdb`, and runtime-command
+failures. The widget tests force missing configuration, blocked storage, HTTP
+refusal, synchronous fetch, payload serialization, and network failure while
+proving the host page remains usable and receives a `reflo:tracking-error`
+event. Every failure assertion checks a raw cause and an exact recovery action.
 
 ## Dependency check
 

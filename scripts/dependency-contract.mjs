@@ -12,8 +12,19 @@ const manifests = [
 const exact = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const failures = [];
 
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    console.error(
+      `could not read dependency manifest ${file}: ${error.message}. Next: restore valid JSON in that file, then rerun npm run test:dependencies.`,
+    );
+    process.exit(1);
+  }
+}
+
 for (const file of manifests) {
-  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  const manifest = readJson(file);
   for (const section of ['dependencies', 'devDependencies', 'overrides']) {
     for (const [name, version] of Object.entries(manifest[section] ?? {})) {
       if (typeof version !== 'string' || !exact.test(version)) {
@@ -23,7 +34,7 @@ for (const file of manifests) {
   }
 }
 
-const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+const lock = readJson('package-lock.json');
 const cron = Object.entries(lock.packages ?? {}).find(
   ([path]) => path === 'node_modules/cron-parser' || path.endsWith('/node_modules/cron-parser'),
 )?.[1];
@@ -41,7 +52,7 @@ const expectedHolds = new Map([
 ]);
 for (const [key, expected] of expectedHolds) {
   const [file, name] = key.split(':');
-  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  const manifest = readJson(file);
   const actual = manifest.dependencies?.[name] ?? manifest.devDependencies?.[name];
   if (actual !== expected) failures.push(`${key} expected ${expected}, got ${actual}`);
 }

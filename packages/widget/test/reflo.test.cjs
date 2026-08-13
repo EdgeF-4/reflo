@@ -21,7 +21,7 @@ function loadWidget(options = {}) {
     },
   };
   const window = {
-    location: { search: '', hostname: 'publisher.test' },
+    location: options.location || { search: '', hostname: 'publisher.test' },
     localStorage: {
       getItem: () => 'stable-customer',
       setItem: () => {},
@@ -32,11 +32,16 @@ function loadWidget(options = {}) {
   };
   const document = {
     currentScript: script,
-    readyState: 'complete',
+    readyState: options.readyState || 'complete',
     getElementsByTagName: () => [script],
-    querySelectorAll: () => [],
-    addEventListener: (name, callback) => { listeners[name] = callback; },
+    querySelectorAll: options.querySelectorAll || (() => []),
+    addEventListener: options.documentAddEventListener || ((name, callback) => { listeners[name] = callback; }),
   };
+  if (options.currentScriptError) {
+    Object.defineProperty(document, 'currentScript', {
+      get: () => { throw new Error(options.currentScriptError); },
+    });
+  }
   class CustomEvent {
     constructor(name, init) { this.type = name; this.detail = init.detail; }
   }
@@ -100,4 +105,64 @@ test('blocked identity storage reports fallback impact and recovery', () => {
   });
   assert.match(h.events[0].detail.message, /storage denied/);
   assert.match(h.events[0].detail.message, /allow first-party localStorage/);
+});
+
+test('synchronous fetch failure cannot break the host page', async () => {
+  const h = loadWidget({ fetch: () => { throw new Error('fetch unavailable'); } });
+  const result = await h.window.reflo.track('click');
+  assert.equal(result.ok, false);
+  assert.match(result.error, /fetch unavailable/);
+  assert.match(result.error, /Next: confirm browser fetch support/);
+});
+
+test('payload serialization failure cannot break the host page', async () => {
+  const h = loadWidget();
+  const result = await h.window.reflo.track('click', { customerRef: 1n });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /serialize a BigInt/);
+  assert.match(result.error, /Next: pass a serializable string customerRef/);
+});
+
+test('blocked location access cannot break the host page', async () => {
+  const location = { search: '' };
+  Object.defineProperty(location, 'hostname', {
+    get: () => { throw new Error('location denied'); },
+  });
+  const h = loadWidget({ location });
+  const result = await h.window.reflo.track('click');
+  assert.equal(result.ok, false);
+  assert.match(result.error, /location denied/);
+  assert.match(result.error, /Next: allow access to window.location/);
+});
+
+test('bootstrap document accessor failure is contained and actionable', async () => {
+  const h = loadWidget({ currentScriptError: 'currentScript denied' });
+  const result = await h.window.reflo.track('click');
+  assert.equal(result.ok, false);
+  assert.match(h.events[0].detail.message, /currentScript denied/);
+  assert.match(h.events[0].detail.message, /Next: restore normal script and document access/);
+});
+
+test('automatic form discovery failure is contained and actionable', () => {
+  const h = loadWidget({
+    dataset: { refloAuto: 'true' },
+    querySelectorAll: () => { throw new Error('selector denied'); },
+  });
+  assert.match(
+    h.events.find((event) => /selector denied/.test(event.detail.message)).detail.message,
+    /Next: restore document query access/,
+  );
+});
+
+test('document readiness listener failure is contained and actionable', () => {
+  const h = loadWidget({
+    dataset: { refloAuto: 'true' },
+    readyState: 'loading',
+    documentAddEventListener: () => { throw new Error('listener denied'); },
+  });
+  h.window.location.search = '';
+  assert.match(
+    h.events.find((event) => /listener denied/.test(event.detail.message)).detail.message,
+    /Next: disable data-reflo-auto/,
+  );
 });

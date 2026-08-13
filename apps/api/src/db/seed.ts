@@ -11,6 +11,7 @@ import {
   type LedgerState,
   type PriorConversion,
 } from '@reflo/domain';
+import { releaseDatabaseClient } from './failure-boundaries';
 
 const TENANT_SLUG = 'northwind';
 const DEMO_PASSWORD = 'demo1234';
@@ -36,24 +37,28 @@ export async function seedDemo(pool: Pool): Promise<{ seeded: boolean }> {
   }
 
   const client = await pool.connect();
+  let operationError: unknown;
   try {
     await client.query('BEGIN');
     await build(client);
     await client.query('COMMIT');
     return { seeded: true };
   } catch (err) {
+    operationError = err;
     try {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
-      throw new Error(
+      operationError = new Error(
         `demo seed failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log, restore database health, then rerun the seed only after confirming the transaction state.`,
       );
+      throw operationError;
     }
-    throw new Error(
+    operationError = new Error(
       `demo seed failed: ${(err as Error).message}. Next: inspect the failing seed statement and database log, correct the cause, then restart the API.`,
     );
+    throw operationError;
   } finally {
-    client.release();
+    releaseDatabaseClient(client, 'demo seed', operationError);
   }
 }
 

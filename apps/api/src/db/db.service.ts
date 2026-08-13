@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { loadConfig } from '../config';
+import { cleanupFailures, releaseDatabaseClient } from './failure-boundaries';
 
 /** A minimal query interface so callers do not depend on the pg client shape. */
 export interface Querier {
@@ -38,6 +39,7 @@ export class DbService implements OnModuleDestroy {
   /** Run work inside a tenant-scoped transaction as the unprivileged role. */
   async runAs<T>(scope: DbScope, work: (q: Querier) => Promise<T>): Promise<T> {
     const client: PoolClient = await this.appPool.connect();
+    let operationError: unknown;
     try {
       await client.query('BEGIN');
       await client.query('SELECT set_config($1, $2, true)', ['reflo.tenant_id', scope.tenantId]);
@@ -49,26 +51,32 @@ export class DbService implements OnModuleDestroy {
       await client.query('COMMIT');
       return result;
     } catch (err) {
+      operationError = err;
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
-        throw new Error(
+        operationError = new Error(
           `tenant transaction failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log, restore database health, then retry only after confirming the transaction state.`,
         );
+        throw operationError;
       }
       throw err;
     } finally {
-      client.release();
+      releaseDatabaseClient(client, 'tenant transaction', operationError);
     }
   }
 
   /** Run work as the superuser. Use only for migrations, seeding, and auth lookups. */
   async runAdmin<T>(work: (q: Querier) => Promise<T>): Promise<T> {
     const client = await this.adminPool.connect();
+    let operationError: unknown;
     try {
       return await work(client);
+    } catch (err) {
+      operationError = err;
+      throw err;
     } finally {
-      client.release();
+      releaseDatabaseClient(client, 'admin operation', operationError);
     }
   }
 
@@ -78,11 +86,13 @@ export class DbService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    const results = await Promise.allSettled([this.appPool.end(), this.adminPool.end()]);
-    const failed = results.filter((result) => result.status === 'rejected') as PromiseRejectedResult[];
+    const failed = await cleanupFailures([
+      { name: 'application pool', run: () => this.appPool.end() },
+      { name: 'admin pool', run: () => this.adminPool.end() },
+    ]);
     if (failed.length) {
       throw new Error(
-        `database pool shutdown failed: ${failed.map((result) => String(result.reason)).join('; ')}. Next: stop new requests, inspect active database clients, then retry shutdown.`,
+        `database pool shutdown failed: ${failed.join('; ')}. Next: stop new requests, inspect active database clients, then retry shutdown.`,
       );
     }
   }

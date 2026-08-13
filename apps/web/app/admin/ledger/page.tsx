@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api, reportActionableError } from '@/lib/api';
+import { actionableError, api, reportActionableError } from '@/lib/api';
 import { money, shortDate } from '@/lib/format';
 import { Badge, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -45,7 +45,10 @@ export default function LedgerPage() {
       await api.post(`/ledger/entries/${id}/transition`, { type });
       refetch();
     } catch (e) {
-      const message = (e as Error).message;
+      const message = actionableError(
+        e,
+        'refresh the ledger state, inspect the API response, then retry a valid transition.',
+      );
       setNote(message);
       reportActionableError(message);
     } finally {
@@ -56,11 +59,14 @@ export default function LedgerPage() {
   async function runPayouts() {
     setBusy('payouts');
     try {
-      const r = await api.post<{ paidEntries: number }>('/ledger/payouts/run', {});
+      const r = await api.runPayouts();
       setNote(`Paid ${r.paidEntries} payable entr${r.paidEntries === 1 ? 'y' : 'ies'}.`);
       refetch();
     } catch (e) {
-      const message = (e as Error).message;
+      const message = actionableError(
+        e,
+        'inspect the payout response and current ledger state, correct the cause, then retry.',
+      );
       setNote(message);
       reportActionableError(message);
     } finally {

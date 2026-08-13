@@ -34,7 +34,7 @@ expect_json() {
   local response
   failure_context="requesting ${label} from ${path}"
   failure_action="run \`docker compose ps\` and \`docker compose logs api\`, restore the API, then retry."
-  response="$(curl --fail --silent -H "Authorization: Bearer $token" "$API_URL$path")"
+  response="$(curl --fail --silent --show-error -H "Authorization: Bearer $token" "$API_URL$path")"
   printf '%s' "$response" | jq -e "$filter" >/dev/null
   checks=$((checks + 1))
   printf 'ok %02d  %s\n' "$checks" "$label"
@@ -44,7 +44,7 @@ login() {
   local email="$1"
   failure_context="signing in ${email}"
   failure_action="verify the seeded credentials and API health, then retry."
-  curl --fail --silent -H 'content-type: application/json' \
+  curl --fail --silent --show-error -H 'content-type: application/json' \
     -d "{\"tenantSlug\":\"northwind\",\"email\":\"${email}\",\"password\":\"demo1234\"}" \
     "$API_URL/auth/login"
 }
@@ -57,7 +57,7 @@ expect_api_error() {
   local token="$5"
   local data="$6"
   local raw body status
-  local args=(--silent --request "$method" --write-out $'\n%{http_code}')
+  local args=(--silent --show-error --request "$method" --write-out $'\n%{http_code}')
   if [[ -n "$token" ]]; then
     args+=(-H "Authorization: Bearer $token")
   fi
@@ -80,13 +80,13 @@ expect_api_error() {
 
 failure_context="checking API health"
 failure_action="start the demo, wait for the API health check, then retry."
-curl --fail --silent "$API_URL/health" | jq -e '.status == "ok" and .database == "up"' >/dev/null
+curl --fail --silent --show-error "$API_URL/health" | jq -e '.status == "ok" and .database == "up"' >/dev/null
 checks=$((checks + 1))
 printf 'ok %02d  API health and database\n' "$checks"
 
 failure_context="checking the web application"
 failure_action="run \`docker compose ps web\` and \`docker compose logs web\`, restore the web service, then retry."
-test "$(curl --silent -o /dev/null -w '%{http_code}' "$WEB_URL")" = "200"
+test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' "$WEB_URL")" = "200"
 checks=$((checks + 1))
 printf 'ok %02d  web application\n' "$checks"
 
@@ -130,7 +130,7 @@ expect_api_error 'missing ledger entry' 404 GET \
 
 failure_context="selecting a terminal ledger entry for the transition failure"
 failure_action="verify the seeded ledger contains a paid entry, then rerun the smoke check."
-paid_entry_id="$(curl --fail --silent -H "Authorization: Bearer $admin_token" \
+paid_entry_id="$(curl --fail --silent --show-error -H "Authorization: Bearer $admin_token" \
   "$API_URL/ledger/entries" | jq -er 'map(select(.state == "paid"))[0].id')"
 expect_api_error 'illegal ledger transition' 400 POST \
   "/ledger/entries/${paid_entry_id}/transition" "$admin_token" '{"type":"confirmed"}'

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, reportActionableError, setSession } from '@/lib/api';
+import { actionableError, api, reportActionableError, setSession } from '@/lib/api';
 import { ErrorNote } from '@/components/ui';
 
 const DEMO = [
@@ -27,7 +27,10 @@ export default function LoginPage() {
       setSession(token, user);
       router.replace(user.role === 'partner' ? '/portal' : '/admin');
     } catch (err) {
-      const message = (err as Error).message;
+      const message = actionableError(
+        err,
+        'inspect the login response and browser console, correct the cause, then retry.',
+      );
       setError(message);
       reportActionableError(message);
     } finally {

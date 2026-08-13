@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api, reportActionableError } from '@/lib/api';
+import { actionableError, api, reportActionableError } from '@/lib/api';
 import { money } from '@/lib/format';
 import { Badge, Card, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -49,7 +49,10 @@ export default function OffersPage() {
       setName('');
       refetch();
     } catch (err) {
-      const message = (err as Error).message;
+      const message = actionableError(
+        err,
+        'inspect the offer request and API response, correct the cause, then retry.',
+      );
       setNote(message);
       reportActionableError(message);
     } finally {

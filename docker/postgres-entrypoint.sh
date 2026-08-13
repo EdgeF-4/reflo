@@ -87,4 +87,14 @@ if [ "${1:-}" = "postgres" ]; then
     set -- postgres -c "listen_addresses=*" -c "unix_socket_directories=/run/postgresql"
 fi
 
+runtime_command="${1:-}"
+if [ -z "$runtime_command" ]; then
+    printf 'PostgreSQL runtime command was not provided. Next: restore the image default CMD (postgres), then rerun the container.\n' >&2
+    exit 64
+fi
+if ! command -v "$runtime_command" >/dev/null 2>&1; then
+    printf 'PostgreSQL runtime command "%s" was not found. Next: restore the image default CMD or install that command, then rerun the container.\n' "$runtime_command" >&2
+    exit 127
+fi
+
 exec "$@"

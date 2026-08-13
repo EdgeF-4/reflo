@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { releaseDatabaseClient } from './failure-boundaries';
 
 /** Resolve the migrations directory across local and container layouts. */
 export function resolveMigrationsDir(): string {
@@ -38,6 +39,7 @@ export async function applyMigrations(pool: Pool, dir = resolveMigrationsDir()):
     if (done.has(file)) continue;
     const sql = readFileSync(join(dir, file), 'utf8');
     const client = await pool.connect();
+    let operationError: unknown;
     try {
       await client.query('BEGIN');
       await client.query(sql);
@@ -45,18 +47,21 @@ export async function applyMigrations(pool: Pool, dir = resolveMigrationsDir()):
       await client.query('COMMIT');
       applied.push(file);
     } catch (err) {
+      operationError = err;
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
-        throw new Error(
+        operationError = new Error(
           `migration ${file} failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log and migration, restore database health, then retry only after confirming the schema state.`,
         );
+        throw operationError;
       }
-      throw new Error(
+      operationError = new Error(
         `migration ${file} failed: ${(err as Error).message}. Next: inspect that migration and the database log, correct the failing statement, then restart the API.`,
       );
+      throw operationError;
     } finally {
-      client.release();
+      releaseDatabaseClient(client, `migration ${file}`, operationError);
     }
   }
   return applied;

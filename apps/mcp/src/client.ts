@@ -58,6 +58,16 @@ export class RefloClient {
     );
   }
 
+  private async json<T>(res: Response, operation: string): Promise<T> {
+    try {
+      return (await res.json()) as T;
+    } catch (err) {
+      throw new Error(
+        `${operation} returned invalid JSON: ${(err as Error).message}. Next: inspect the Reflo API or reverse proxy response, restore a valid JSON response, then retry.`,
+      );
+    }
+  }
+
   private async ensureToken(): Promise<string> {
     if (this.token) return this.token;
     const res = await this.call('/auth/login', {
@@ -70,8 +80,19 @@ export class RefloClient {
       }),
     });
     if (!res.ok) throw await this.failure(res, 'login');
-    const json = (await res.json()) as { token: string };
-    this.token = json.token;
+    const json = await this.json<unknown>(res, 'login');
+    if (
+      json === null ||
+      typeof json !== 'object' ||
+      Array.isArray(json) ||
+      typeof (json as { token?: unknown }).token !== 'string' ||
+      !(json as { token: string }).token
+    ) {
+      throw new Error(
+        'login response was not an object containing a non-empty token. Next: inspect POST /auth/login and restore its documented token field, then retry.',
+      );
+    }
+    this.token = (json as { token: string }).token;
     return this.token;
   }
 
@@ -81,17 +102,25 @@ export class RefloClient {
       headers: { authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw await this.failure(res, `GET ${path}`);
-    return res.json();
+    return this.json(res, `GET ${path}`);
   }
 
   async post(path: string, body: unknown): Promise<unknown> {
     const token = await this.ensureToken();
+    let serialized: string;
+    try {
+      serialized = JSON.stringify(body);
+    } catch (err) {
+      throw new Error(
+        `could not serialize POST ${path}: ${(err as Error).message}. Next: remove circular or unsupported values from the tool input, then retry.`,
+      );
+    }
     const res = await this.call(path, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: serialized,
     });
     if (!res.ok) throw await this.failure(res, `POST ${path}`);
-    return res.json();
+    return this.json(res, `POST ${path}`);
   }
 }

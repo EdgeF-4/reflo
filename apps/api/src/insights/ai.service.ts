@@ -61,13 +61,26 @@ export class AiService {
         }),
       });
       if (!res.ok) {
+        let detail = '';
+        try {
+          detail = (await res.text()).slice(0, 300);
+        } catch (bodyError) {
+          detail = `response body unavailable: ${(bodyError as Error).message}`;
+        }
         this.logger.warn(
-          `optional provider returned ${res.status}. Next: verify the provider URL, model, and credential or remove the config to use deterministic insights.`,
+          `optional provider returned ${res.status}${detail ? `: ${detail}` : ''}. Next: verify the provider URL, model, and credential or remove the config to use deterministic insights.`,
         );
         return null;
       }
       const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      return json.choices?.[0]?.message?.content ?? null;
+      const content = json.choices?.[0]?.message?.content;
+      if (!content) {
+        this.logger.warn(
+          'optional provider response omitted choices[0].message.content. Next: verify the configured model supports chat completions or remove the config to use deterministic insights.',
+        );
+        return null;
+      }
+      return content;
     } catch (err) {
       this.logger.warn(
         `optional provider request failed: ${(err as Error).message}. Next: verify provider reachability or remove the config to use deterministic insights.`,

@@ -1,6 +1,6 @@
 import { Controller, Get, Header } from '@nestjs/common';
-import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadWidgetSource } from './widget-source';
 
 /** Serves the embeddable tracking widget so a site can load it by script tag. */
 @Controller()
@@ -14,10 +14,7 @@ export class WidgetController {
       '/app/packages/widget/reflo.js',
       join(__dirname, '..', '..', '..', '..', 'packages', 'widget', 'reflo.js'),
     ].filter(Boolean) as string[];
-    for (const path of candidates) {
-      if (existsSync(path)) return readFileSync(path, 'utf8');
-    }
-    return '/* reflo widget source not found */';
+    return loadWidgetSource(candidates);
   }
 
   @Get('reflo.js')

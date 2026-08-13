@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api } from '@/lib/api';
+import { actionableError, api, reportActionableError } from '@/lib/api';
 import { money } from '@/lib/format';
 import { Card, Stat, Badge, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -36,12 +36,21 @@ export default function Dashboard() {
   const summary = useApi<Summary>('/reports/summary');
   const partners = useApi<PartnerRow[]>('/reports/partners');
   const [insights, setInsights] = useState<Insights | null>(null);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
 
   async function runInsights() {
     setLoadingInsights(true);
+    setInsightsError(null);
     try {
       setInsights(await api.get<Insights>('/insights/partners'));
+    } catch (err) {
+      const message = actionableError(
+        err,
+        'inspect the insights API response and optional provider log, correct the cause, then retry.',
+      );
+      setInsightsError(message);
+      reportActionableError(message);
     } finally {
       setLoadingInsights(false);
     }
@@ -94,6 +103,7 @@ export default function Dashboard() {
             }
           />
           {!insights && <p className="text-sm text-slate-500">Generate insights to surface activation gaps and payout risk.</p>}
+          {insightsError && <ErrorNote message={insightsError} />}
           {insights && (
             <div className="space-y-3">
               <ul className="space-y-1.5 text-sm text-slate-300">

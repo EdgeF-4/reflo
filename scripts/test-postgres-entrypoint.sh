@@ -56,4 +56,33 @@ run_failure initdb 'initdb raw failure' 23 'running initdb' 'inspect the initdb 
 run_failure pg_ctl 'pg_ctl raw failure' 24 'starting temporary PostgreSQL with pg_ctl' 'inspect the PostgreSQL log under PGDATA'
 run_failure createdb 'createdb raw failure' 25 'creating database reflo as postgres' 'correct POSTGRES_DB or POSTGRES_USER'
 
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/reflo-entrypoint.XXXXXX")
+mkdir -p "$fixture/data"
+printf '16\n' > "$fixture/data/PG_VERSION"
+set +e
+output=$(PATH="/usr/bin:/bin" PGDATA="$fixture/data" POSTGRES_PASSWORD=test \
+    sh "$ENTRYPOINT" reflo-command-that-does-not-exist 2>&1)
+status=$?
+set -e
+if [ "$status" -ne 127 ]; then
+    printf 'entrypoint failure test failed: missing runtime command returned %s, expected 127. Next: preserve the command-not-found exit code, then rerun npm run test:postgres-entrypoint.\n' "$status" >&2
+    exit 1
+fi
+assert_contains "$output" 'reflo-command-that-does-not-exist' 'runtime command diagnostic'
+assert_contains "$output" 'Next: restore the image default CMD' 'runtime command recovery'
+tests=$((tests + 1))
+
+set +e
+output=$(PATH="/usr/bin:/bin" PGDATA="$fixture/data" POSTGRES_PASSWORD=test \
+    sh "$ENTRYPOINT" 2>&1)
+status=$?
+set -e
+if [ "$status" -ne 64 ]; then
+    printf 'entrypoint failure test failed: empty runtime command returned %s, expected 64. Next: preserve the missing-command exit code, then rerun npm run test:postgres-entrypoint.\n' "$status" >&2
+    exit 1
+fi
+assert_contains "$output" 'runtime command was not provided' 'empty runtime command diagnostic'
+assert_contains "$output" 'Next: restore the image default CMD' 'empty runtime command recovery'
+tests=$((tests + 1))
+
 printf '%s PostgreSQL entrypoint failure tests passed.\n' "$tests"
