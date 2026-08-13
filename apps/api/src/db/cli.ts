@@ -8,6 +8,7 @@ async function main() {
   const cmd = process.argv[2];
   const cfg = loadConfig();
   const pool = new Pool({ connectionString: cfg.adminDatabaseUrl });
+  let operationError: unknown;
   try {
     if (cmd === 'migrate') {
       const applied = await applyMigrations(pool);
@@ -21,8 +22,17 @@ async function main() {
       );
       process.exit(1);
     }
+  } catch (err) {
+    operationError = err;
+    throw err;
   } finally {
-    await pool.end();
+    try {
+      await pool.end();
+    } catch (closeError) {
+      throw new Error(
+        `database pool close failed: ${(closeError as Error).message}. Next: inspect active database clients and health, then retry the same command.${operationError ? ` Original operation failure: ${(operationError as Error).message}` : ''}`,
+      );
+    }
   }
 }
 

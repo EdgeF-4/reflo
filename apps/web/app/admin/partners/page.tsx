@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api } from '@/lib/api';
+import { api, reportActionableError } from '@/lib/api';
 import { shortDate } from '@/lib/format';
 import { Badge, Card, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -30,7 +30,9 @@ export default function PartnersPage() {
       setEmail('');
       refetch();
     } catch (err) {
-      setNote((err as Error).message);
+      const message = (err as Error).message;
+      setNote(message);
+      reportActionableError(message);
     } finally {
       setBusy(false);
     }

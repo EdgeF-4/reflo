@@ -17,6 +17,7 @@
       and submitting the form records a lead. Watch the events appear under
       <code>/track/event</code> on the API.
     </p>
+    <p id="tracking-status" role="status">Tracking has not reported a failure.</p>
 
     <form data-reflo-lead onsubmit="event.preventDefault(); alert('lead captured');">
       <label>Email <input type="email" name="email" placeholder="you@example.com" required /></label>
@@ -32,5 +33,10 @@
       data-reflo-partner="creator-pro"
       data-reflo-auto="true"
     ></script>
+    <script>
+      window.addEventListener('reflo:tracking-error', function (event) {
+        document.getElementById('tracking-status').textContent = event.detail.message;
+      });
+    </script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { api } from './api';
+import { api, reportActionableError } from './api';
 
 /** Fetch a GET endpoint with loading and error state, plus a refetch handle. */
 export function useApi<T>(path: string | null) {
@@ -17,7 +17,10 @@ export function useApi<T>(path: string | null) {
         setData(d);
         setError(null);
       })
-      .catch((e: Error) => setError(e.message))
+      .catch((e: Error) => {
+        setError(e.message);
+        reportActionableError(e.message);
+      })
       .finally(() => setLoading(false));
   }, [path]);
 

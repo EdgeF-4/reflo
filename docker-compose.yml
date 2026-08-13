@@ -48,7 +48,7 @@ services:
     ports:
       - "127.0.0.1:${REFLO_API_PORT:-4000}:4000"
     healthcheck:
-      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://localhost:4000/health').then(r=>r.json()).then(j=>process.exit(j.status==='ok'?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "/usr/bin/node", "-e", "fetch('http://localhost:4000/health').then(async r=>{let j;try{j=await r.json()}catch(e){throw new Error('invalid JSON: '+e.message)}if(!r.ok||j.status!=='ok'){throw new Error('HTTP '+r.status+' reported '+String(j.status))}}).catch(e=>{console.error('Reflo API health check failed: '+e.message+'. Next: inspect the API and database logs, correct the cause, then retry.');process.exit(1)})"]
       interval: 5s
       timeout: 5s
       retries: 20

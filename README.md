@@ -77,6 +77,9 @@ The smoke script requires `curl` and `jq`. It checks health, the web response, b
 
 ```bash
 npm ci
+npm run test:postgres-entrypoint
+npm run test:widget
+npm run test:api-failures
 npm run test:domain
 ```
 
@@ -88,6 +91,12 @@ Tests       50 passed (50)
 ```
 
 These tests cover exact-cent allocation, ledger state transitions, five attribution models, commission rules, and pure fraud-signal scoring.
+
+The API startup tests force database-pool cleanup, listen, and application-close
+failures. The entrypoint failure tests force raw `initdb`, `pg_ctl`, and `createdb`
+failures and verify the exact recovery action. The widget tests force missing
+configuration, blocked storage, HTTP refusal, and network failure while proving
+the host page remains usable and receives a `reflo:tracking-error` event.
 
 ## Dependency check
 
@@ -171,6 +180,24 @@ The Node.js dependencies were not installed in this checkout. From the repositor
 npm ci
 npm run test:domain
 ```
+
+### `PostgreSQL setup failed while ...`
+
+The custom database entrypoint preserves the raw `initdb`, `pg_ctl`, or
+`createdb` diagnostic and names the correction. Follow its `Next:` line, then
+rerun:
+
+```bash
+docker compose up --build --wait
+```
+
+### `Reflo tracking ... failed`
+
+The widget never throws a tracking failure into the host page. It returns an
+`{ok: false, error}` result, logs the same actionable message, and dispatches a
+`reflo:tracking-error` browser event. Confirm the API URL, public key, and
+allowed domain named by the error, then retry the event. The demo page renders
+the event in its tracking status region.
 
 ## Design decision
 

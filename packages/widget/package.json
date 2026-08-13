@@ -6,6 +6,7 @@
   "main": "reflo.js",
   "files": ["reflo.js", "demo.html"],
   "scripts": {
-    "build": "node -e \"console.log('widget is a single static file: reflo.js')\""
+    "build": "node -e \"console.log('widget is a single static file: reflo.js')\"",
+    "test": "node test/reflo.test.cjs"
   }
 }

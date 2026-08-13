@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, setSession } from '@/lib/api';
+import { api, reportActionableError, setSession } from '@/lib/api';
 import { ErrorNote } from '@/components/ui';
 
 const DEMO = [
@@ -27,7 +27,9 @@ export default function LoginPage() {
       setSession(token, user);
       router.replace(user.role === 'partner' ? '/portal' : '/admin');
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      reportActionableError(message);
     } finally {
       setBusy(false);
     }

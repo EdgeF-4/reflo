@@ -49,7 +49,13 @@ export class DbService implements OnModuleDestroy {
       await client.query('COMMIT');
       return result;
     } catch (err) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        throw new Error(
+          `tenant transaction failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log, restore database health, then retry only after confirming the transaction state.`,
+        );
+      }
       throw err;
     } finally {
       client.release();
@@ -72,6 +78,12 @@ export class DbService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.allSettled([this.appPool.end(), this.adminPool.end()]);
+    const results = await Promise.allSettled([this.appPool.end(), this.adminPool.end()]);
+    const failed = results.filter((result) => result.status === 'rejected') as PromiseRejectedResult[];
+    if (failed.length) {
+      throw new Error(
+        `database pool shutdown failed: ${failed.map((result) => String(result.reason)).join('; ')}. Next: stop new requests, inspect active database clients, then retry shutdown.`,
+      );
+    }
   }
 }

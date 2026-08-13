@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useApi } from '@/lib/useApi';
-import { api } from '@/lib/api';
+import { api, reportActionableError } from '@/lib/api';
 import { money, shortDate } from '@/lib/format';
 import { Badge, SectionTitle, Table, Loading, ErrorNote } from '@/components/ui';
 
@@ -45,7 +45,9 @@ export default function LedgerPage() {
       await api.post(`/ledger/entries/${id}/transition`, { type });
       refetch();
     } catch (e) {
-      setNote((e as Error).message);
+      const message = (e as Error).message;
+      setNote(message);
+      reportActionableError(message);
     } finally {
       setBusy(null);
     }
@@ -58,7 +60,9 @@ export default function LedgerPage() {
       setNote(`Paid ${r.paidEntries} payable entr${r.paidEntries === 1 ? 'y' : 'ies'}.`);
       refetch();
     } catch (e) {
-      setNote((e as Error).message);
+      const message = (e as Error).message;
+      setNote(message);
+      reportActionableError(message);
     } finally {
       setBusy(null);
     }

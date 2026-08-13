@@ -34,8 +34,42 @@
     try {
       return new URLSearchParams(window.location.search).get(name) || undefined;
     } catch (e) {
+      reportFailure('configuration', e, 'correct the page URL, then reload the page');
       return undefined;
     }
+  }
+
+  function errorText(error) {
+    if (error && typeof error.message === 'string') return error.message;
+    return String(error || 'unknown failure');
+  }
+
+  function reportFailure(operation, error, next) {
+    var detail =
+      'Reflo tracking ' + operation + ' failed: ' + errorText(error) + '. Next: ' + next + '.';
+    try {
+      window.dispatchEvent(
+        new CustomEvent('reflo:tracking-error', {
+          detail: { operation: operation, message: detail },
+        }),
+      );
+    } catch (eventError) {
+      detail +=
+        ' Error notification also failed: ' +
+        errorText(eventError) +
+        '. Next: inspect the browser console and integration code before retrying.';
+    }
+    try {
+      if (window.console && typeof window.console.error === 'function') {
+        window.console.error(detail);
+      }
+    } catch (consoleError) {
+      detail +=
+        ' Browser console reporting also failed: ' +
+        errorText(consoleError) +
+        '. Next: inspect the returned error value before retrying.';
+    }
+    return detail;
   }
 
   // A stable, anonymous first-party identifier. No third-party cookie involved.
@@ -49,7 +83,11 @@
       window.localStorage.setItem(k, generated);
       return generated;
     } catch (e) {
-      // Storage blocked: fall back to a per-page id so tracking still works.
+      reportFailure(
+        'identity storage',
+        e,
+        'allow first-party localStorage for stable attribution or accept a per-page identity',
+      );
       return 'r_session_' + Math.random().toString(36).slice(2, 10);
     }
   }
@@ -57,7 +95,16 @@
   var customerRef = uid();
 
   function send(type, opts) {
-    if (!config.key || !config.api) return Promise.resolve();
+    if (!config.key || !config.api) {
+      return Promise.resolve({
+        ok: false,
+        error: reportFailure(
+          'configuration',
+          'data-reflo-key or data-reflo-api is missing',
+          'set both data attributes on the script tag, then reload the page',
+        ),
+      });
+    }
     opts = opts || {};
     var body = {
       publicKey: config.key,
@@ -71,8 +118,32 @@
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
       keepalive: true,
-    }).catch(function () {
-      /* tracking must never break the host page */
+    }).then(function (response) {
+      if (!response.ok) {
+        return response.text().catch(function (readError) {
+          return 'could not read response body: ' + errorText(readError);
+        }).then(function (bodyText) {
+          return {
+            ok: false,
+            status: response.status,
+            error: reportFailure(
+              type + ' request',
+              'HTTP ' + response.status + (bodyText ? ': ' + bodyText.slice(0, 200) : ''),
+              'verify the public key and allowed domain in the API, then retry the event',
+            ),
+          };
+        });
+      }
+      return { ok: true, status: response.status };
+    }).catch(function (error) {
+      return {
+        ok: false,
+        error: reportFailure(
+          type + ' request',
+          error,
+          'confirm the API is reachable and data-reflo-api is correct, then retry the event',
+        ),
+      };
     });
   }
 

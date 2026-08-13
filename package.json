@@ -13,7 +13,10 @@
     "build:widget": "npm run build --workspace @reflo/widget",
     "test": "npm run test --workspace @reflo/domain",
     "test:domain": "npm run test --workspace @reflo/domain",
+    "test:api-failures": "npm run build --workspace @reflo/api && node apps/api/test/startup-boundaries.test.cjs",
+    "test:widget": "npm run test --workspace @reflo/widget",
     "test:dependencies": "node scripts/dependency-contract.mjs",
+    "test:postgres-entrypoint": "sh scripts/test-postgres-entrypoint.sh",
     "test:smoke": "bash scripts/smoke.sh"
   },
   "engines": {

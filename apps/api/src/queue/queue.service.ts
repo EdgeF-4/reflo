@@ -42,7 +42,9 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         if (job.name === 'auto-confirm') {
           return this.ledger.systemTransition(job.data.tenantId, job.data.entryId, 'confirmed');
         }
-        return null;
+        throw new Error(
+          `unsupported settlement job ${job.name}. Next: remove or migrate that queued job, then restart the worker.`,
+        );
       },
       { connection },
     );
@@ -66,7 +68,19 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await Promise.allSettled([this.worker?.close(), this.queue?.close()]);
-    this.connection?.disconnect();
+    const results = await Promise.allSettled([this.worker?.close(), this.queue?.close()]);
+    const failed = results.filter((result) => result.status === 'rejected') as PromiseRejectedResult[];
+    if (failed.length) {
+      this.logger.error(
+        `settlement queue shutdown failed: ${failed.map((result) => String(result.reason)).join('; ')}. Next: inspect active jobs and Redis health, then retry shutdown before restarting the API.`,
+      );
+    }
+    try {
+      this.connection?.disconnect();
+    } catch (err) {
+      this.logger.error(
+        `Redis disconnect failed: ${(err as Error).message}. Next: inspect Redis clients, then stop the connection before restarting the API.`,
+      );
+    }
   }
 }

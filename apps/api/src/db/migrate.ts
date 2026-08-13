@@ -45,7 +45,13 @@ export async function applyMigrations(pool: Pool, dir = resolveMigrationsDir()):
       await client.query('COMMIT');
       applied.push(file);
     } catch (err) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        throw new Error(
+          `migration ${file} failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log and migration, restore database health, then retry only after confirming the schema state.`,
+        );
+      }
       throw new Error(
         `migration ${file} failed: ${(err as Error).message}. Next: inspect that migration and the database log, correct the failing statement, then restart the API.`,
       );

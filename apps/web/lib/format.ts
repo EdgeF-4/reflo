@@ -10,11 +10,10 @@ export function pct(bps: number | string): string {
 }
 
 export function shortDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return iso;
-  }
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? `Invalid date (${iso})`
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 export const STATE_STYLES: Record<string, string> = {

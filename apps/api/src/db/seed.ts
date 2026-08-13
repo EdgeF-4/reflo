@@ -42,8 +42,16 @@ export async function seedDemo(pool: Pool): Promise<{ seeded: boolean }> {
     await client.query('COMMIT');
     return { seeded: true };
   } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      throw new Error(
+        `demo seed failed: ${(err as Error).message}; rollback also failed: ${(rollbackError as Error).message}. Next: inspect the database log, restore database health, then rerun the seed only after confirming the transaction state.`,
+      );
+    }
+    throw new Error(
+      `demo seed failed: ${(err as Error).message}. Next: inspect the failing seed statement and database log, correct the cause, then restart the API.`,
+    );
   } finally {
     client.release();
   }
@@ -366,4 +374,3 @@ async function settleLedgerEntry(
     seq += 1;
   }
 }
-

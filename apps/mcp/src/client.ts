@@ -17,8 +17,10 @@ export function loadMcpConfig(): McpConfig {
     try {
       const raw = JSON.parse(readFileSync(path, 'utf8')) as { mcp?: Partial<McpConfig> };
       fromFile = raw.mcp ?? {};
-    } catch {
-      /* ignore malformed config and fall through to defaults */
+    } catch (err) {
+      throw new Error(
+        `could not read MCP config ${path}: ${(err as Error).message}. Next: correct the JSON or remove the file to use documented local defaults, then restart the MCP process.`,
+      );
     }
   }
   return {
@@ -45,7 +47,12 @@ export class RefloClient {
   }
 
   private async failure(res: Response, operation: string): Promise<Error> {
-    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    let detail = '';
+    try {
+      detail = (await res.text()).slice(0, 300);
+    } catch (err) {
+      detail = `response body unavailable: ${(err as Error).message}`;
+    }
     return new Error(
       `${operation} failed with HTTP ${res.status}${detail ? `: ${detail}` : ''}. Next: verify the configured account, route, and running API, then retry.`,
     );
